@@ -93,11 +93,11 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ### Notes:
 
 1. **Replace placeholders**:
-   - Make sure to replace `https://github.com/yourusername/devil-fruits-stock-bot.git` with the actual URL of your GitHub repository.
+   - Make sure to replace `[https://github.com/yourusername/devil-fruits-stock-bot.git](https://github.com/JanzenDC/Bloxfruit-Notifier/)` with the actual URL of your GitHub repository.
    - Ensure `your_discord_bot_token` and `your_discord_channel_id` in the `.env` file are correctly set.
 
 2. **Dependencies**:
-   - The `prices.js` and `stocktime.js` files are assumed to be in the same directory as your `bot.js`. Make sure they are set up correctly according to the provided script.
+   - The `prices.js` and `stocktime.js` files are assumed to be in the same directory as your `index.js`. Make sure they are set up correctly according to the provided script.
 
 3. **Usage**:
    - Commands and their functionality are described briefly in the Usage section.
