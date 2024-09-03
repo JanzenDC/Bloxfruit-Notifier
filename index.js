@@ -32,10 +32,9 @@ async function checkStock() {
         // Determine which fruits are in the current stock
         const currentStock = [];
         for (const fruit of Object.keys(prices)) {
-            const fruitIsInStock = currentSection.includes(`>${fruit.toUpperCase()}<`);
-            if (fruitIsInStock) currentStock.push(fruit.toUpperCase());
+            const fruitIsInStock = currentSection.includes(`>${fruit.toLowerCase()}<`);
+            if (fruitIsInStock) currentStock.push(fruit);
         }
-
 
         // If only one fruit is found, add "rocket" and "spin"
         if (currentStock.length === 1) currentStock.unshift("rocket", "spin");
