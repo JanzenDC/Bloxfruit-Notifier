@@ -1,141 +1,184 @@
-const { Client, GatewayIntentBits, Events, EmbedBuilder } = require('discord.js');
-const axios = require('axios');
-const dotenv = require('dotenv');
-const prices = require('./prices'); // Import the prices module
-const moment = require('moment-timezone'); // Import moment-timezone for time manipulation
-const stocktime = require('./stocktime'); // Import the stocktime module
+                    // Required Dependencies
+                    const { Client, GatewayIntentBits, Events, EmbedBuilder } = require('discord.js');
+                    const axios = require('axios');
+                    const dotenv = require('dotenv');
+                    const moment = require('moment-timezone');
 
-dotenv.config();
+                    // Custom Modules
+                    const prices = require('./prices'); // Ensure this module exports an object with fruit prices
+                    const stocktime = require('./stocktime'); // Ensure this module exports a function nextTimestamp()
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-});
+                    dotenv.config();
 
-const TOKEN = process.env.BOT_TOKEN;
-const CHANNEL_ID = process.env.CHANNEL_ID;
+                    // Environment Variables
+                    const TOKEN = process.env.BOT_TOKEN;
+                    const CHANNEL_ID = process.env.CHANNEL_ID;
 
-const URL = 'https://blox-fruits.fandom.com/wiki/Blox_Fruits_"Stock"';
+                    // URL to fetch stock data from
+                    const STOCK_URL = 'https://fruityblox.com/stock';
 
-// Function to check the stock
-async function checkStock() {
-    try {
-        const { data } = await axios.get(URL);
-        const page = data.toLowerCase();
+                    // Initialize Discord Client
+                    const client = new Client({
+                        intents: [
+                            GatewayIntentBits.Guilds,
+                            GatewayIntentBits.GuildMessages,
+                            GatewayIntentBits.MessageContent
+                        ]
+                    });
 
-        // Extracting relevant section of the page
-        const currentSection = page.split('id="mw-customcollapsible-current"').pop().split('id="mw-customcollapsible-last"')[0];
+                    // Function to fetch and parse stock data
+                    async function checkStock() {
+                        try {
+                            const { data } = await axios.get(STOCK_URL);
 
-        // Determine which fruits are in the current stock
-        const currentStock = [];
-        for (const fruit of Object.keys(prices)) {
-            const fruitIsInStock = currentSection.includes(`>${fruit.toLowerCase()}<`);
-            if (fruitIsInStock) currentStock.push(fruit);
-        }
+                            // Use regex to extract all image alt attributes which contain fruit names
+                            const altRegex = /<img[^>]*alt="([^"]+)"[^>]*>/gi;
+                            const matches = [...data.matchAll(altRegex)].map(match => match[1]);
 
-        // If only one fruit is found, add "rocket" and "spin"
-        if (currentStock.length === 1) currentStock.unshift("rocket", "spin");
+                            if (matches.length === 0) {
+                                console.warn('No fruits found in stock data.');
+                                return {
+                                    normalStock: ['No fruits in normal stock'],
+                                    mirageStock: ['No fruits in mirage stock']
+                                };
+                            }
 
-        return currentStock;
-    } catch (error) {
-        console.error('[Utils getCurrentStock]:', error);
-        return ['Error fetching stock data'];
-    }
-}
+                            // Divide the fruits into normal and mirage stock based on their order
+                            const midIndex = Math.floor(matches.length / 2);
+                            const normalStock = matches.slice(0, midIndex);
+                            const mirageStock = matches.slice(midIndex);
 
-// Function to get the formatted time in Pacific Time minus 4 hours
-function getFormattedTime() {
-    const now = moment.tz('Asia/Singapore');
+                            return {
+                                normalStock: normalStock.length > 0 ? normalStock : ['No fruits in normal stock'],
+                                mirageStock: mirageStock.length > 0 ? mirageStock : ['No fruits in mirage stock']
+                            };
+
+                        } catch (error) {
+                            console.error('[checkStock Error]:', error);
+                            return {
+                                normalStock: ['Error fetching normal stock data'],
+                                mirageStock: ['Error fetching mirage stock data']
+                            };
+                        }
+                    }
+
+                    // Function to get current time in a specific timezone
+                    function getFormattedTime() {
+                        const now = moment().tz('Asia/Singapore');
+                        return now.format('h:mm:ss A');
+                    }
+
+                    // Function to calculate time until next update
+                    function getTimeUntilNextUpdate() {
+                        const now = moment();
+                        const nextUpdate = moment.unix(stocktime.nextTimestamp());
+                        const duration = moment.duration(nextUpdate.diff(now));
+
+                        const hours = Math.floor(duration.asHours());
+                        const minutes = duration.minutes();
+                        const seconds = duration.seconds();
+
+                        return `${hours}h ${minutes}m ${seconds}s`;
+                    }
+
+                    // Function to send stock update to Discord
+                    async function sendStockUpdate() {
+                        try {
+                            const currentStock = await checkStock();
+                            const channel = await client.channels.fetch(CHANNEL_ID);
+
+                            if (!channel) {
+                                console.error('Channel not found!');
+                                return;
+                            }
+
+                            // Format normal stock
+                            const normalStockList = currentStock.normalStock
+                            .filter(fruit => prices[fruit.toLowerCase()]) // Filter out fruits without prices
+                            .map(fruit => {
+                                const price = prices[fruit.toLowerCase()];
+                                return `• **${capitalizeFirstLetter(fruit)}** - ${price}`;
+                            }).join('\n');
 
 
-    return now.format('h:mm:ss A'); 
-}
+                            // Format mirage stock
+                            const mirageStockList = currentStock.mirageStock
+                            .filter(fruit => prices[fruit.toLowerCase()]) // Filter out fruits without prices
+                            .map(fruit => {
+                                const price = prices[fruit.toLowerCase()];
+                                return `• **${capitalizeFirstLetter(fruit)}** - ${price}`;
+                            }).join('\n');
 
+                            // Create embed message
+                            const embed = new EmbedBuilder()
+                                .setColor('#FFA500')
+                                .setTitle('🍇 Devil Fruits Stock Update 🍇')
+                                .addFields(
+                                    { name: '🌟 Normal Stock', value: normalStockList || 'No fruits available', inline: false },
+                                    { name: '✨ Mirage Stock', value: mirageStockList || 'No fruits available', inline: false },
+                                )
+                                .setFooter({
+                                    text: `${getFormattedTime()} | Next update in: ${getTimeUntilNextUpdate()}`,
+                                    iconURL: 'https://media.tenor.com/Qo0KoxEZZBUAAAAC/gol-d-roger-one-piece.gif' // Replace with a valid URL or remove this line
+                                })
+                                .setTimestamp();
 
-function getTimeUntilNextUpdate() {
-    const now = new Date().getTime() / 1000; // Current time in seconds
-    const nextTimestamp = stocktime.nextTimestamp(); // Get next update timestamp
-    const timeUntilNextUpdate = nextTimestamp - now; // Time until next update
-    const duration = moment.duration(timeUntilNextUpdate, 'seconds'); // Create a duration object
+                            // Send embed to channel
+                            await channel.send({ embeds: [embed] });
+                            console.log('Stock update sent successfully.');
 
-    // Format the duration as "X hours, Y minutes, Z seconds"
-    const hours = Math.floor(duration.asHours());
-    const minutes = duration.minutes();
-    const seconds = duration.seconds();
-    return `${hours}h ${minutes}m ${seconds}s`;
-}
+                        } catch (error) {
+                            console.error('[sendStockUpdate Error]:', error);
+                        }
+                    }
 
+                    // Helper function to schedule the next stock update
+                    function scheduleNextUpdate() {
+                        const nextTimestamp = stocktime.nextTimestamp();
+                        const now = moment().unix();
+                        const timeUntilNextUpdate = (nextTimestamp - now) * 1000; // Convert to milliseconds
 
-// Function to send stock update to Discord
-async function sendStockUpdate() {
-    try {
-        const currentStock = await checkStock(); // Fetch the current stock
-        const channel = await client.channels.fetch(CHANNEL_ID);
+                        console.log(`Next update scheduled in ${moment.duration(timeUntilNextUpdate).humanize()}.`);
 
-        if (channel) {
-            // Create a formatted string for the current stock
-            const stockList = currentStock.map(fruit => `- ${fruit}`).join('\n');
+                        setTimeout(async () => {
+                            await sendStockUpdate();
+                            scheduleNextUpdate(); // Schedule subsequent updates
+                        }, timeUntilNextUpdate);
+                    }
 
-            // Get time until next update
-            const timeUntilNextUpdate = getTimeUntilNextUpdate();
+                    // Helper function to capitalize the first letter of a string
+                    function capitalizeFirstLetter(string) {
+                        return string.charAt(0).toUpperCase() + string.slice(1);
+                    }
 
-            // Create an embed message with a footer
-            const embed = new EmbedBuilder()
-                .setTitle('Devil Fruits Stock Update')
-                .setDescription(`Current Stock:\n${stockList}`)
-                .setFooter({
-                    text: `${getFormattedTime()} | Next update in: ${timeUntilNextUpdate}`,
-                    iconURL: 'https://th.bing.com/th/id/R.6830a20aa5f313af4ef2998b0d649313?rik=MEacFFrivckYtw&riu=http%3a%2f%2forig12.deviantart.net%2ff873%2ff%2f2011%2f043%2f4%2ff%2fkyubi_png_ii_by_hidan_sama1408-d39dr89.png&ehk=XWx0%2fditCSkz1dQ4kB4qwgpCj9pGOuqkGK5f9QGffTo%3d&risl=&pid=ImgRaw&r=0' // Optional footer icon
-                });
+                    // Event listener when the bot is ready
+                    client.once(Events.ClientReady, () => {
+                        console.log(`Logged in as ${client.user.tag}!`);
+                        sendStockUpdate(); // Send initial update
+                        scheduleNextUpdate(); // Schedule future updates
+                    });
 
-            channel.send({ embeds: [embed] });
-        } else {
-            console.error('Channel not found!');
-        }
-    } catch (error) {
-        console.error('Error sending stock update:', error);
-    }
-}
+                    // Command handling (example for price lookup)
+                    client.on(Events.MessageCreate, message => {
+                        if (!message.content.startsWith('!') || message.author.bot) return;
 
-// Function to schedule the next update
-function scheduleNextUpdate() {
-    const nextTimestamp = stocktime.nextTimestamp();
-    const now = new Date().getTime() / 1000;
-    const timeUntilNextUpdate = nextTimestamp - now;
+                        const args = message.content.slice(1).trim().split(/ +/);
+                        const command = args.shift().toLowerCase();
 
-    console.log(`Next update scheduled in ${timeUntilNextUpdate} seconds`);
+                        if (command === 'price') {
+                            const fruit = args.join(' ').toLowerCase();
+                            if (!fruit) {
+                                return message.channel.send('Please specify a fruit name. Example: `!price dragon`');
+                            }
+                            const price = prices[fruit];
+                            if (price) {
+                                message.channel.send(`The price of **${capitalizeFirstLetter(fruit)}** is **${price}**.`);
+                            }
+                        }
+                        if (command === 'stock') {
+                            sendStockUpdate();
+                        }
+                    });
 
-    // Schedule the next update
-    setTimeout(() => {
-        sendStockUpdate(); // Send the update
-        scheduleNextUpdate(); // Schedule the next updates
-    }, timeUntilNextUpdate * 1000);
-}
-
-client.once(Events.ClientReady, () => {
-    console.log('Bot is online!');
-    sendStockUpdate(); // Send an initial update
-    scheduleNextUpdate(); // Schedule the next updates
-});
-
-// Handle commands (if needed)
-client.on(Events.MessageCreate, message => {
-    if (!message.content.startsWith('!') || message.author.bot) return;
-
-    const args = message.content.slice(1).trim().split(/ +/);
-    const command = args.shift().toLowerCase();
-
-    if (command === 'price') {
-        const fruit = args[0].toLowerCase();
-        if (prices[fruit]) {
-            message.channel.send(`The price of ${fruit} is ${prices[fruit]}`);
-        } else {
-            message.channel.send('That fruit is not available or the name is incorrect. Please check the fruit name.');
-        }
-    }
-});
-
-client.login(TOKEN);
+                    // Login to Discord
+                    client.login(TOKEN);
