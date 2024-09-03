@@ -49,10 +49,12 @@ async function checkStock() {
 // Function to get the formatted time in Pacific Time minus 4 hours
 function getFormattedTime() {
     const now = moment.tz('Asia/Singapore');
-    return now.format('YYYY-MM-DD HH:mm:ss'); // Format the time
+
+
+    return now.format('h:mm:ss A'); 
 }
 
-// Function to get time until next update
+
 function getTimeUntilNextUpdate() {
     const now = new Date().getTime() / 1000; // Current time in seconds
     const nextTimestamp = stocktime.nextTimestamp(); // Get next update timestamp
@@ -65,6 +67,7 @@ function getTimeUntilNextUpdate() {
     const seconds = duration.seconds();
     return `${hours}h ${minutes}m ${seconds}s`;
 }
+
 
 // Function to send stock update to Discord
 async function sendStockUpdate() {
@@ -84,7 +87,7 @@ async function sendStockUpdate() {
                 .setTitle('Devil Fruits Stock Update')
                 .setDescription(`Current Stock:\n${stockList}`)
                 .setFooter({
-                    text: `Last checked at: ${getFormattedTime()} | Next update in: ${timeUntilNextUpdate}`,
+                    text: `${getFormattedTime()} | Next update in: ${timeUntilNextUpdate}`,
                     iconURL: 'https://th.bing.com/th/id/R.6830a20aa5f313af4ef2998b0d649313?rik=MEacFFrivckYtw&riu=http%3a%2f%2forig12.deviantart.net%2ff873%2ff%2f2011%2f043%2f4%2ff%2fkyubi_png_ii_by_hidan_sama1408-d39dr89.png&ehk=XWx0%2fditCSkz1dQ4kB4qwgpCj9pGOuqkGK5f9QGffTo%3d&risl=&pid=ImgRaw&r=0' // Optional footer icon
                 });
 
