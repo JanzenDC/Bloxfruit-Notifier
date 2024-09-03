@@ -32,9 +32,10 @@ async function checkStock() {
         // Determine which fruits are in the current stock
         const currentStock = [];
         for (const fruit of Object.keys(prices)) {
-            const fruitIsInStock = currentSection.includes(`>${fruit.toLowerCase()}<`);
-            if (fruitIsInStock) currentStock.push(fruit);
+            const fruitIsInStock = currentSection.includes(`>${fruit.toUpperCase()}<`);
+            if (fruitIsInStock) currentStock.push(fruit.toUpperCase());
         }
+
 
         // If only one fruit is found, add "rocket" and "spin"
         if (currentStock.length === 1) currentStock.unshift("rocket", "spin");
@@ -48,9 +49,8 @@ async function checkStock() {
 
 // Function to get the formatted time in Pacific Time minus 4 hours
 function getFormattedTime() {
-    const now = moment.tz('America/Los_Angeles'); // Get current time in PT
-    const pastTime = now.subtract(4, 'hours'); // Subtract 4 hours
-    return pastTime.format('YYYY-MM-DD HH:mm:ss'); // Format the time
+    const now = moment.tz('Asia/Singapore');
+    return now.format('YYYY-MM-DD HH:mm:ss'); // Format the time
 }
 
 // Function to get time until next update
@@ -86,7 +86,7 @@ async function sendStockUpdate() {
                 .setDescription(`Current Stock:\n${stockList}`)
                 .setFooter({
                     text: `Last checked at: ${getFormattedTime()} | Next update in: ${timeUntilNextUpdate}`,
-                    iconURL: 'https://example.com/your-icon.png' // Optional footer icon
+                    iconURL: 'https://th.bing.com/th/id/R.6830a20aa5f313af4ef2998b0d649313?rik=MEacFFrivckYtw&riu=http%3a%2f%2forig12.deviantart.net%2ff873%2ff%2f2011%2f043%2f4%2ff%2fkyubi_png_ii_by_hidan_sama1408-d39dr89.png&ehk=XWx0%2fditCSkz1dQ4kB4qwgpCj9pGOuqkGK5f9QGffTo%3d&risl=&pid=ImgRaw&r=0' // Optional footer icon
                 });
 
             channel.send({ embeds: [embed] });
