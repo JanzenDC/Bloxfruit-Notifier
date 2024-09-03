@@ -1,4 +1,4 @@
-```markdown
+
 # Devil Fruits Stock Notifier Bot
 
 This Discord bot notifies a specified channel about the current stock of Devil Fruits in the Blox Fruits game. The bot checks the stock status from a specific URL, formats the information, and sends updates to a Discord channel using an embedded message.
@@ -89,8 +89,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [Discord.js](https://discord.js.org/) for the Discord API wrapper.
 - [Axios](https://axios-http.com/) for making HTTP requests.
 - [Moment-Timezone](https://momentjs.com/timezone/) for handling timezones.
-
-```
 
 ### Notes:
 
